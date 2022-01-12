@@ -1,0 +1,172 @@
+# import pymysql
+# station_id = 191
+# # 打开数据库连接
+# db = pymysql.connect(host='172.16.1.204', port=3306, user='elaid_all', password='Ulu7w6KPsGwnxlmm', charset='utf8')
+#
+# # 使用cursor()方法获取操作游标
+# cursor = db.cursor()
+#
+# # 使用execute方法执行SQL语句
+# cursor.execute('''select barn.connect_id
+#          from elaid_im_jk.im_charge_barn barn
+#              left join elaid_im_jk.im_hdz_connector_status st on barn.connect_id = st.connector_id and
+#              st.operator_id = barn.platform_code
+#          where barn.del_flag = 1 and station_id = ''' + station_id + ''' group by barn.connect_id''')
+# results = cursor.fetchall()
+# # SQL 插入语句
+# for i in range(len(results)):
+#     a = results[i][0]
+#     '''b = results[i]
+#     print(a)
+#     print(b)'''
+#     insert_sql = """INSERT INTO `elaid_im_jk`.`im_hdz_connector_status`
+#     (`connector_id`, `status`, `battery_no`, `current_voltage`, `current_residual_power`, `current_residual_capacity`,
+#     `battery_is_fault`, `battery_is_replaceable`, `current_soc`, `max_voltage_battery_subsystem_no`,
+#     `battery_cell_max_voltage`, `min_voltage_battery_subsystem_no`, `battery_cell_min_voltage`,
+#     `max_temp_battery_subsystem_no`, `max_temp_probe_no`, `max_temp`, `min_temp_battery_subsystem_no`,
+#     `min_temp_probe_no`, `min_temp`, `operator_id`, `create_time`, `update_time`)
+#     VALUES ('""" + str(a) + """', 3, '00MPE0JC431D0M979110000""" + str(i) + """', 0, 0, 0, 0, 0, 33.6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'MA003NU15', 1619683740, 1619692948);
+#     """
+#     try:
+#         # 执行sql语句
+#         cursor.execute(insert_sql)
+#         # 提交到数据库执行
+#         db.commit()
+#
+#     except:
+#         # Rollback in case there is any error
+#         db.rollback()
+#     print(insert_sql)
+#
+#
+# # 关闭数据库连接
+# db.close()
+import re
+
+tag_ab = {
+    'tag': 'CTTTTCAAGTGAAATCATAGGATACAAGGCTATTGATGGTGGTGTCACTCGTGACATAGCATCTACAGATACTTGTTTTGCTAACAAACATGCTGATTTTGACACATGGTTTAGCCAGCG',
+    'tag_all': 'CTTTTCAAGTGAAATCATAGGATACAAGGCTATTGATGGTGGTGTCACTCGTGACATAGCATCTACAGATACTTGTTTTGCTAACAAACATGCTGATTTTGACACATGGTTTAGCCAGCG',
+    'before': '0', 'after': '0'}
+tag_abp = {
+    'tag': 'CTTTTCAAGTGAAATCATAGGATACAAGGCTATTGATGGTGGTGTCACTCGTGACATAGCATCTACAGATACTTGTTTTGCTAACAAACATGCTGATTTTGACACATGGTTTAGCCAGCG',
+    'tag_all': 'CTTTTCAAGTGAAATCATAGGATACAAGGCTATTGATGGTGGTGTCACTCGTGACATAGCATCTACAGATACTTGTTTTGCTAACAAACATGCTGATTTTGACACATGGTTTAGCCAGCG',
+    'before': '0', 'after': '0'}
+tag_abf = {
+    'tag': 'CTTTTCAAGTGAAATCATAGGATACAAGGCTATTGATGGTGGTGTCACTCGTGACATAGCATCTACAGATACTTGTTTTGCTAACAAACATGCTGATTTTGACACATGGTTTAGCCAGCG',
+    'tag_all': 'CTTTTCAAGTGAAATCATAGGATACAAGGCTATTGATGGTGGTGTCACTCGTGACATAGCATCTACAGATACTTGTTTTGCTAACAAACATGCTGATTTTGACACATGGTTTAGCCAGCG',
+    'before': '0', 'after': '0'}
+tag_abr = {
+    'tag': 'CTTTTCAAGTGAAATCATAGGATACAAGGCTATTGATGGTGGTGTCACTCGTGACATAGCATCTACAGATACTTGTTTTGCTAACAAACATGCTGATTTTGACACATGGTTTAGCCAGCG',
+    'tag_all': 'CTTTTCAAGTGAAATCATAGGATACAAGGCTATTGATGGTGGTGTCACTCGTGACATAGCATCTACAGATACTTGTTTTGCTAACAAACATGCTGATTTTGACACATGGTTTAGCCAGCG',
+    'before': '0', 'after': '0'}
+
+
+def write_file(file_path, text, method):
+    '''
+    写文件
+    '''
+    fi = open(file_path, method)
+    fi.write(text)
+    fi.close()
+
+
+def fast_2_txt():
+    '''
+    把fasta文件转为TXT格式，并去掉基因片段中多余的换行，输出文件test1.txt
+    :return:
+    '''
+    with open('/Users/zcsy/Desktop/gene/Mu-20211105-20211204-438.fasta', 'r', encoding='utf-8') as file:
+        for line in file:
+            if '>hCoV-19' in line:
+                num = re.findall(r'\|(.*?)\|', line)
+                write_file('test1.txt', '\n\n' + num[0] + '\n', 'a')
+            else:
+                write_file('test1.txt', line.replace('\n', ''), 'a')
+
+
+def txt_2_dict():
+    '''
+    把基因从文件中提取出来转为字典格式
+    字典键为基因名，值为基因片段
+    :return: 基因字典
+    '''
+    gene_dict = {}
+    with open('test1.txt', 'r', encoding='utf-8') as gene_info:
+        gene_list = gene_info.readlines()
+        for i in range(len(gene_list)):  #
+            if 'EPI' in gene_list[i]:
+                gene_dict[gene_list[i].strip('\n')] = gene_list[i + 1].strip('\n')
+                # print(gene_dict)
+    return gene_dict
+
+
+def check_tag(tag: str, tag_all, uncheck_dic: dict, be_start=0, af_end=0):
+    '''
+    传入引物序列与目标基因序列进行比对
+    :param tag: 引物片段
+    :param tag_all: 完整引物
+    :param uncheck_dic: 目标基因序列的字典格式
+    :param be_start: 前*位为完整引物序列开始
+    :param af_end: 后*位为完整引物序列结束
+    tag_dic：[1对应引物序列在目标基因序列所在位置，2与完整引物对比后结果，3截取的完整片段，目标基因序列]
+    :return: 输出两个字典（能够完全匹配上的序列，不能完全匹配的序列）
+    '''
+    tag_dic = {}
+    un_tag_dic = {}
+    tag_cheak = ''
+    while uncheck_dic:
+        dic = uncheck_dic.popitem()
+        # print(dic)
+        if tag in dic[1]:
+            tag_start = int(dic[1].index(tag)) - be_start
+            tag_end = int(dic[1].index(tag)) + af_end + len(tag)
+            taged = dic[1][tag_start: tag_end]
+            for char in range(len(tag_all)):
+                if taged[char] == tag_all[char]:
+                    tag_cheak += '*'
+                else:
+                    tag_cheak += taged[char]
+            tag_dic[dic[0]] = [dic[1].index(tag), tag_cheak, taged, dic[1]]
+        else:
+            un_tag_dic[dic[0]] = dic[1]
+    return tag_dic, un_tag_dic
+
+
+def uncheak_tag(tag: str, tag_all, uncheck_dic: dict):
+    tag_dic = {}
+    un_tag_dic = {}
+    tag_cheak = ''
+    while uncheck_dic:
+        dic = uncheck_dic.popitem()
+        a = 0
+        while a < len(tag):
+            star = a
+            end = a + int(len(tag) / 10)
+            a += int(len(tag) / 10)
+            tag_str = tag[star:end]
+            for i in range(len(dic[1])):
+                pass
+
+    return tag_dic, un_tag_dic
+
+
+
+def read_tag(tag_dic):
+    '''
+    传入引物字典解析
+    :param tag_dic:引物字典
+    :return: 拆包解析后结果
+    '''
+    tag = tag_dic['tag']
+    tag_all = tag_dic['tag_all']
+    before = tag_dic['before']
+    after = tag_dic['after']
+    return [tag, tag_all, int(before), int(after)]
+
+# dic1 = txt_2_dict()
+# tagab, tagall, before_start, after_end = read_tag(tag_ab)
+# ab_tag, un_ab_tag = check_tag(tagab, tagall, dic1, before_start, after_end)
+# print(ab_tag)
+# print(len(ab_tag))
+# print('-' * 50)
+# print(un_ab_tag)
